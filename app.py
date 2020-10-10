@@ -1,0 +1,49 @@
+import flask
+from flask_pymongo import PyMongo
+import json
+import tornado.wsgi
+import tornado.httpserver
+import tornado.autoreload
+
+app = flask.Flask(__name__)
+app.config["MONGO_URI"] = "mongodb://localhost:27017/test"
+mongo = PyMongo(app)
+
+@app.route('/')
+def index():
+    return flask.render_template('index.html', has_result=False)
+
+@app.route('/signup', methods=['POST'])
+def signup():
+	user = flask.request.form['username']
+	print(user)
+	result = mongo.db.users.find({"name": user})
+	if(result.count() == 0):
+		mongo.db.users.insert({"name": user})
+		return json.dumps({"success": 1})
+	else:
+		print('用户已存在')
+		return json.dumps({"success": 0})
+
+@app.route('/login', methods=['POST'])
+def login():
+	user = flask.request.form['username']
+	print(user)
+	result = mongo.db.users.find({"name": user})
+	if(result.count() == 0):
+		print('用户不存在')
+		return json.dumps({"success": 0})
+	else:
+		return json.dumps({"success": 1})
+
+def start_tornado(app, port=10086):
+    http_server = tornado.httpserver.HTTPServer(
+        tornado.wsgi.WSGIContainer(app))
+    http_server.listen(port)
+    print("Tornado server starting on port {}".format(port))
+    tornado.ioloop.IOLoop.instance().start()
+
+if __name__ == '__main__':
+	# 用app.run很慢
+	app.run(debug=True, host='0.0.0.0', port=10086)
+	# start_tornado(app)
